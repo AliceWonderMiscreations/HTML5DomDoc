@@ -53,10 +53,18 @@ document object.
 You can create child nodes using the DOMDocument class as needed and append
 them to those nodes.
 
-Enabling Features
------------------
+Public Methods
+--------------
 
-Blah
+### rtalabel()
+
+If the web page contains content that is not suitable for children, you should
+use the `rtalabel` method method. This method takes no arguments. When served,
+the RTALabel header will be sent with the content and the RTALabel meta tag
+will be added to the document `head` node.
+
+RTALabel allows parental content filters to block the content from being
+displayed to children.
 
 
 scriptManager.class.php
