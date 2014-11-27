@@ -254,15 +254,6 @@ class html5domdoc {
 	  }
 	}
 	
-	public function addPolicy($directive, $allowed) {
-	  if(isset($this->policy[$directive])) {
-	    $this->policy[$directive][] = $allowed;
-	  } else {
-	    $new = array("'self'", $allowed);
-	    $this->policy[$directive] = $new;
-	  }
-	}
-	
 	//sends the headers, called by sendPage
 	private function sendHeader() {
 	  if ($this->sendcsp) {
@@ -280,6 +271,15 @@ class html5domdoc {
 	
 	public function usecsp() {
 		$this->sendcsp = true;
+	}
+	
+	public function addPolicy($directive, $allowed) {
+	  if(isset($this->policy[$directive])) {
+	    $this->policy[$directive][] = $allowed;
+	  } else {
+	    $new = array("'self'", $allowed);
+	    $this->policy[$directive] = $new;
+	  }
 	}
 	
 	public function whiteListObject($type) {
