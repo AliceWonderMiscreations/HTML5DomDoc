@@ -13,105 +13,104 @@
  */
 
 class html5domdoc {
-	private $dom;
-	public $xmlHtml;
-	public $xmlHead;
-	public $xmlBody;
-	private $rtalabel = FALSE;
-	private $sendcsp = FALSE;
-	private $keywords = array();
-	private $description = '';
-	private $policy = array();
-	private $cspstring;
-	private $objectwhitelist = array('text/plain', 'text/html', 'image/webp', 'application/pdf', 'application/xhtml+xml');
-	private $xmlns = 'http://www.w3.org/1999/xhtml';
-	private $xmlLang = 'en';
-	
-	/* any function that uses head / body should call this */
-	private function domNodes() {
-		$this->xmlHtml = $this->dom->getElementsByTagName('html')->item(0);
-		$this->xmlHead = $this->dom->getElementsByTagName('head')->item(0);
-		$this->xmlBody = $this->dom->getElementsByTagName('body')->item(0);
-	}
-	
-	//creates Content Security Policy
-	private function generateCSP() {
-	  //foreach($this->policy as $directive) {
-	  //  $key = key($directive);
-	  //  array_unique($directive);
-	  //}
-	  $bar = array();
+  private $dom;
+  public $xmlHtml;
+  public $xmlHead;
+  public $xmlBody;
+  private $rtalabel = FALSE;
+  private $sendcsp = FALSE;
+  private $keywords = array();
+  private $description = '';
+  private $policy = array();
+  private $cspstring;
+  private $objectwhitelist = array('text/plain', 'text/html', 'image/webp', 'application/pdf', 'application/xhtml+xml');
+  private $xmlns = 'http://www.w3.org/1999/xhtml';
+  private $xmlLang = 'en';
+
+  /* any function that uses head / body should call this */
+  private function domNodes() {
+    $this->xmlHtml = $this->dom->getElementsByTagName('html')->item(0);
+    $this->xmlHead = $this->dom->getElementsByTagName('head')->item(0);
+    $this->xmlBody = $this->dom->getElementsByTagName('body')->item(0);
+  }
+
+  //creates Content Security Policy
+  private function generateCSP() {
+    //foreach($this->policy as $directive) {
+    //  $key = key($directive);
+    //  array_unique($directive);
+    //}
+    $bar = array();
     while($directive = current($this->policy)) {
       $foo = array();
       $key = key($this->policy);
       $new = $this->policy[$key];
       foreach($new as $value) {
         if(! in_array(trim($value), $foo)) {
-          $foo[] = trim($value);
+        $foo[] = trim($value);
         }
       }
       $bar[$key] = $foo;
       next($this->policy);
     }
-	  
-	  $this->cspstring = 'default-src ' . implode(' ', $bar['default-src']);
-	  if(isset($bar['script-src'])) {
-	    $this->cspstring .= '; script-src ' . implode(' ', $bar['script-src']);
-	  }
-	  if(isset($bar['object-src'])) {
-	    $this->cspstring .= '; object-src ' . implode(' ', $bar['object-src']);
-	  }
-	  if(isset($bar['img-src'])) {
-	    $this->cspstring .= '; img-src ' . implode(' ', $bar['img-src']);
-	  } else {
-	    $this->cspstring .= '; img-src *';
-	  }
-	  if(isset($bar['media-src'])) {
-	    $this->cspstring .= '; media-src ' . implode(' ', $bar['media-src']);
-	  }
-	  if(isset($bar['child-src'])) {
-	    $this->cspstring .= '; child-src ' . implode(' ', $bar['child-src']);
-	  }
-	  //$this->cspstring .= '; child-src *';
-	  if(isset($bar['frame-ancestors'])) {
-	    $this->cspstring .= '; frame-ancestors ' . implode(' ', $bar['frame-ancestors']);
-	  } else {
-	    $this->cspstring .= "; frame-ancestors 'self'";
-	  }
-	  if(isset($bar['font-src'])) {
-	    $this->cspstring .= '; font-src ' . implode(' ', $bar['font-src']);
-	  }
-	  if(isset($bar['connect-src'])) {
-	    $this->cspstring .= '; connect-src ' . implode(' ', $bar['connect-src']);
-	  }
-	  if(isset($bar['form-action'])) {
-	    $this->cspstring .= '; form-action ' . implode(' ', $bar['form-action']);
-	  }
-	  if(isset($bar['style-src'])) {
-	    $this->cspstring .= '; style-src ' . implode(' ', $bar['style-src']);
-	  }
-	  //hack for firefox
-	  if(isset($bar['frame-src'])) {
-	    $this->cspstring .= '; frame-src ' . implode(' ', $bar['frame-src']);
-	  }
-	  /* I need to study these next three */
-	  if(isset($bar['plugin-types'])) {
-	    $this->cspstring .= '; plugin-types ' . implode(' ', $bar['plugin-types']);
-	  }
-	  //$this->cspstring .= '; plugin-types *'; // . implode(' ', $bar['plugin-types']);
-	  if(isset($bar['reflected-xss'])) {
-	    $this->cspstring .= '; reflected-xss ' . implode(' ', $bar['reflected-xss']);
-	  }
-	  if(isset($bar['sandbox'])) {
-	    $this->cspstring .= '; sandbox ' . implode(' ', $bar['sandbox']);
-	  }
-	  /* I do not suggest using below */
-	  if(isset($bar['report-uri'])) {
-	    $this->cspstring .= '; report-uri ' . end($bar['report-uri']);
-	  }
-	  
-	}
-	
+
+    $this->cspstring = 'default-src ' . implode(' ', $bar['default-src']);
+    if(isset($bar['script-src'])) {
+      $this->cspstring .= '; script-src ' . implode(' ', $bar['script-src']);
+    }
+    if(isset($bar['object-src'])) {
+      $this->cspstring .= '; object-src ' . implode(' ', $bar['object-src']);
+    }
+    if(isset($bar['img-src'])) {
+      $this->cspstring .= '; img-src ' . implode(' ', $bar['img-src']);
+    } else {
+      $this->cspstring .= '; img-src *';
+    }
+    if(isset($bar['media-src'])) {
+      $this->cspstring .= '; media-src ' . implode(' ', $bar['media-src']);
+    }
+    if(isset($bar['child-src'])) {
+      $this->cspstring .= '; child-src ' . implode(' ', $bar['child-src']);
+    }
+    //$this->cspstring .= '; child-src *';
+    if(isset($bar['frame-ancestors'])) {
+      $this->cspstring .= '; frame-ancestors ' . implode(' ', $bar['frame-ancestors']);
+    } else {
+      $this->cspstring .= "; frame-ancestors 'self'";
+    }
+    if(isset($bar['font-src'])) {
+      $this->cspstring .= '; font-src ' . implode(' ', $bar['font-src']);
+    }
+    if(isset($bar['connect-src'])) {
+      $this->cspstring .= '; connect-src ' . implode(' ', $bar['connect-src']);
+    }
+    if(isset($bar['form-action'])) {
+      $this->cspstring .= '; form-action ' . implode(' ', $bar['form-action']);
+    }
+    if(isset($bar['style-src'])) {
+      $this->cspstring .= '; style-src ' . implode(' ', $bar['style-src']);
+    }
+    //hack for firefox
+    if(isset($bar['frame-src'])) {
+      $this->cspstring .= '; frame-src ' . implode(' ', $bar['frame-src']);
+    }
+    /* I need to study these next three */
+    if(isset($bar['plugin-types'])) {
+      $this->cspstring .= '; plugin-types ' . implode(' ', $bar['plugin-types']);
+    }
+    //$this->cspstring .= '; plugin-types *'; // . implode(' ', $bar['plugin-types']);
+    if(isset($bar['reflected-xss'])) {
+      $this->cspstring .= '; reflected-xss ' . implode(' ', $bar['reflected-xss']);
+    }
+    if(isset($bar['sandbox'])) {
+      $this->cspstring .= '; sandbox ' . implode(' ', $bar['sandbox']);
+    }
+    /* I do not suggest using below */
+    if(isset($bar['report-uri'])) {
+      $this->cspstring .= '; report-uri ' . end($bar['report-uri']);
+    }
+  }
+
 	/* Puts head elements in logical order, called by sendPage */
 	private function adjustHead() {
 	  if ($this->sendcsp) {
