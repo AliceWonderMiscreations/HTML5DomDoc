@@ -232,6 +232,54 @@ There are two side effects you should be aware of:
    For other glyphs, you should use the action glyph or the decimal / hex
    entity. For example, use `&#160;` instead of `&nbsp;`.
    
+### Content Sanitation
+
+The class will sanitize the body before sending content. This is to reduce the
+odds of successful XSS injection attacks.
+
+The following nodes are *always* removed from the document body:
+
+* script
+* embed
+* applet
+
+Script nodes belong in the `head`. I will not get into yet another argument
+about this, those who disagree have always demonstrated to me that they just do
+not grasp the concept of why.
+
+Nutshell, it is very difficult to inject scripts into the `head` and browsers
+have difficulty determining what scripts are valid and what scripts are malware
+injected into the page. Forbidding them in the `body` reduces the odds of a
+browser needing to determine if they are valid, scripts injected into the body
+are removed before being served.
+
+The page load speed argument is malarky. The page is not functional until all
+the scripts are loaded, a page that renders but is not functional because the
+scripts have not finished downloading is useless and frustrating to the end
+user.
+
+The `embed` element was never a valid element until HTML5 and in HTML5 it is
+redundant to the `object` element and less capable than the `object` element.
+Use `object` instead of `embed`.
+
+The `applet` element is not valid, use `object` instead.
+
+Banning those three nodes in the body reduces possible XSS vectors. If you do
+not like it, fork the class and modify it. It is open source.
+
+With the `object` tag, any `object` without a `type` attribute is removed. Any
+`object` tag where the contents of the `type` attribute is not in the white
+list of allowed types is removed.
+
+Any `object` tag with a `type` attribute that is in the white list will have
+the boolean `typemustmatch` attribute added.
+
+The `typemustmatch` attribute currently will cause a W3C validation error. That
+is a bug in the W3C validator, it is valid HTML5.
+
+### Content Security Policy
+
+The content security policy feature is new and is not yet complete.   
 
 scriptManager.class.php
 -----------------------
