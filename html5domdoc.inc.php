@@ -111,253 +111,241 @@ class html5domdoc {
     }
   }
 
-	/* Puts head elements in logical order, called by sendPage */
-	private function adjustHead() {
-	  if ($this->sendcsp) {
-	    $this->generateCSP();
-	  }
-		$metaEquiv = array();
-		$metaName  = array();
-		$links     = array();
-		$scripts   = array();
-		$misc      = array();
-		$newHead = $this->dom->createElement('head');
-		
-		$children = $this->xmlHead->childNodes;
-		foreach ($children as $child) {
-			$newChild = $child->cloneNode(true);
-			$tag = $newChild->tagName;
-			switch ($tag) {
-				case 'meta' :
-					if ($newChild->hasAttribute('http-equiv')) {
-						$equiv = $newChild->getAttribute('http-equiv');
-						if (strcmp($equiv, 'X-Content-Security-Policy') === 0) {
-							$newHead->appendChild($newChild);
-						} else {
-							$metaEquiv[] = $newChild;
-						}
-					} else {
-						$metaName[] = $newChild;
-					}
-							break;
-				case 'link' :
-					$links[] = $newChild;
-							break;
-				case 'script' :
-					$scripts[] = $newChild;
-							break;
-				case 'title' :
-					$newTitle = $newChild;
-							break;
-				default :
-					$misc[] = $newChild;
-							break;
-			}
+  /* Puts head elements in logical order, called by sendPage */
+  private function adjustHead() {
+    if ($this->sendcsp) {
+      $this->generateCSP();
+    }
+    $metaEquiv = array();
+    $metaName  = array();
+    $links     = array();
+    $scripts   = array();
+    $misc      = array();
+    $newHead = $this->dom->createElement('head');
+
+    $children = $this->xmlHead->childNodes;
+    foreach ($children as $child) {
+      $newChild = $child->cloneNode(true);
+      $tag = $newChild->tagName;
+      switch ($tag) {
+        case 'meta' :
+          if ($newChild->hasAttribute('http-equiv')) {
+            $equiv = $newChild->getAttribute('http-equiv');
+            if (strcmp($equiv, 'X-Content-Security-Policy') === 0) {
+              $newHead->appendChild($newChild);
+            } else {
+              $metaEquiv[] = $newChild;
+            }
+          } else {
+            $metaName[] = $newChild;
+          }
+          break;
+        case 'link' :
+        $links[] = $newChild;
+          break;
+        case 'script' :
+          $scripts[] = $newChild;
+          break;
+        case 'title' :
+          $newTitle = $newChild;
+          break;
+        default :
+          $misc[] = $newChild;
+          break;
+      }
+    }
+
+    $j = count($metaEquiv);
+    for ($i=0; $i<$j; $i++) {
+      $newHead->appendChild($metaEquiv[$i]);
+    }
+    $meta = $this->dom->createElement('meta');
+    $meta->setAttribute('charset', 'UTF-8');
+    $newHead->appendChild($meta);
+
+    if ($this->rtalabel) {
+      $meta = $this->dom->createElement('meta');
+      $meta->setAttribute('name', 'RATING');
+      $meta->setAttribute('content', 'RTA-5042-1996-1400-1577-RTA');
+      $newHead->appendChild($meta);
+    }
+    $j = count($this->keywords);
+    if ($j > 0) {
+      $content = implode(',', array_unique($this->keywords));
+      $meta = $this->dom->createElement('meta');
+      $meta->setAttribute('name', 'keywords');
+      $meta->setAttribute('content', $content);
+      $newHead->appendChild($meta);
+    }
+    if (strlen($this->description) > 0) {
+      $meta = $this->dom->createElement('meta');
+      $meta->setAttribute('name', 'description');
+      $meta->setAttribute('content', $this->description);
+      $newHead->appendChild($meta);
+    }
+    $genstring = 'PHP ' . phpversion() . ' DOMDocument/libxml2 ' . LIBXML_DOTTED_VERSION;
+    $meta = $this->dom->createElement('meta');
+    $meta->setAttribute('name', 'generator');
+    $meta->setAttribute('content', $genstring);
+    $newHead->appendChild($meta);
+    $j = count($metaName);
+    for ($i=0; $i<$j; $i++) {
+      $newHead->appendChild($metaName[$i]);
+    }
+    $j = count($links);
+    for ($i=0; $i<$j; $i++) {
+      $newHead->appendChild($links[$i]);
+    }
+    $j = count($scripts);
+    for ($i=0; $i<$j; $i++) {
+      $newHead->appendChild($scripts[$i]);
+    }
+    $j = count($misc);
+    for ($i=0; $i<$j; $i++) {
+      $newHead->appendChild($misc[$i]);
+    }
+    if (! isset($newTitle)) {
+      $newTitle = $this->dom->createElement('title', 'Page Title');
+    }
+    $newHead->appendChild($newTitle);
+    $this->xmlHead->parentNode->replaceChild($newHead, $this->xmlHead);
+  }
+
+  private function sanitizeBody() {
+    $nodelist = $this->xmlBody->getElementsByTagName('script');
+    $n = $nodelist->length;
+    for($j = $n; --$j >= 0;) {
+      $nodelist->item($j)->parentNode->removeChild($nodelist->item($j));
+    }
+    $nodelist = $this->xmlBody->getElementsByTagName('embed');
+    $n = $nodelist->length;
+    for($j = $n; --$j >= 0;) {
+      $nodelist->item($j)->parentNode->removeChild($nodelist->item($j));
+    }
+    $nodelist = $this->xmlBody->getElementsByTagName('applet');
+    $n = $nodelist->length;
+    for($j = $n; --$j >= 0;) {
+      $nodelist->item($j)->parentNode->removeChild($nodelist->item($j));
+    }
+    $nodelist = $this->xmlBody->getElementsByTagName('object');
+    $n = $nodelist->length;
+    for($j = $n; --$j >= 0;) {
+      $node = $nodelist->item($j);
+      $type = 'null';
+      if($node->hasAttribute('type')) {
+        $type = strtolower(trim($node->getAttribute('type')));
+      }
+      if(in_array($type, $this->objectwhitelist)) {
+        $node->setAttribute('typemustmatch', 'typemustmatch');
+      } else {
+        $node->parentNode->removeChild($node);
+      }
+    }
+  }
+
+  //sends the headers, called by sendPage
+  private function sendHeader() {
+    if ($this->sendcsp) {
+      header('Content-Security-Policy: ' . $this->cspstring);
+    }
+    if ($this->rtalabel) {
+      header('Rating: RTA-5042-1996-1400-1577-RTA');
 		}
-		
-		$j = count($metaEquiv);
-		for ($i=0; $i<$j; $i++) {
-			$newHead->appendChild($metaEquiv[$i]);
-		}
-		
-		$meta = $this->dom->createElement('meta');
-			$meta->setAttribute('charset', 'UTF-8');
-			$newHead->appendChild($meta);
-		
-		if ($this->rtalabel) {
-			$meta = $this->dom->createElement('meta');
-				$meta->setAttribute('name', 'RATING');
-				$meta->setAttribute('content', 'RTA-5042-1996-1400-1577-RTA');
-				$newHead->appendChild($meta);
-		}
-		
-		$j = count($this->keywords);
-		if ($j > 0) {
-			$content = implode(',', array_unique($this->keywords));
-			$meta = $this->dom->createElement('meta');
-				$meta->setAttribute('name', 'keywords');
-				$meta->setAttribute('content', $content);
-				$newHead->appendChild($meta);
-		}
-		
-		if (strlen($this->description) > 0) {
-			$meta = $this->dom->createElement('meta');
-				$meta->setAttribute('name', 'description');
-				$meta->setAttribute('content', $this->description);
-				$newHead->appendChild($meta);
-		}
-		
-		$genstring = 'PHP ' . phpversion() . ' DOMDocument/libxml2 ' . LIBXML_DOTTED_VERSION;
-		$meta = $this->dom->createElement('meta');
-			$meta->setAttribute('name', 'generator');
-			$meta->setAttribute('content', $genstring);
-			$newHead->appendChild($meta);
-			
-		$j = count($metaName);
-		for ($i=0; $i<$j; $i++) {
-			$newHead->appendChild($metaName[$i]);
-		}
-		
-		$j = count($links);
-		for ($i=0; $i<$j; $i++) {
-			$newHead->appendChild($links[$i]);
-		}
-		
-		$j = count($scripts);
-		for ($i=0; $i<$j; $i++) {
-			$newHead->appendChild($scripts[$i]);
-		}
-		
-		$j = count($misc);
-		for ($i=0; $i<$j; $i++) {
-			$newHead->appendChild($misc[$i]);
-		}
-		
-		if (! isset($newTitle)) {
-			$newTitle = $this->dom->createElement('title', 'Page Title');
-		}
-		$newHead->appendChild($newTitle);
-		
-		$this->xmlHead->parentNode->replaceChild($newHead, $this->xmlHead);
-	}
-	
-	private function sanitizeBody() {
-	  $nodelist = $this->xmlBody->getElementsByTagName('script');
-	  $n = $nodelist->length;
-	  for($j = $n; --$j >= 0;) {
-	    $nodelist->item($j)->parentNode->removeChild($nodelist->item($j));
-	  }
-	  $nodelist = $this->xmlBody->getElementsByTagName('embed');
-	  $n = $nodelist->length;
-	  for($j = $n; --$j >= 0;) {
-	    $nodelist->item($j)->parentNode->removeChild($nodelist->item($j));
-	  }
-	  $nodelist = $this->xmlBody->getElementsByTagName('applet');
-	  $n = $nodelist->length;
-	  for($j = $n; --$j >= 0;) {
-	    $nodelist->item($j)->parentNode->removeChild($nodelist->item($j));
-	  }
-	  $nodelist = $this->xmlBody->getElementsByTagName('object');
-	  $n = $nodelist->length;
-	  for($j = $n; --$j >= 0;) {
-	    $node = $nodelist->item($j);
-	    $type = 'null';
-	    if($node->hasAttribute('type')) {
-	      $type = strtolower(trim($node->getAttribute('type')));
-	    }
-	    if(in_array($type, $this->objectwhitelist)) {
-	      $node->setAttribute('typemustmatch', 'typemustmatch');
-	    } else {
-	      $node->parentNode->removeChild($node);
-	    }
-	  }
-	}
-	
-	//sends the headers, called by sendPage
-	private function sendHeader() {
-	  if ($this->sendcsp) {
-	    header('Content-Security-Policy: ' . $this->cspstring);
-	  }
-		if ($this->rtalabel) {
-			header('Rating: RTA-5042-1996-1400-1577-RTA');
-		}
-		header('Content-Type: application/xhtml+xml; charset=utf-8');
-	}
-	
-	public function rtalabel() {
-		$this->rtalabel = true;
-	}
-	
-	public function usecsp() {
-		$this->sendcsp = true;
-	}
-	
-	public function addPolicy($directive, $allowed) {
-	  if(isset($this->policy[$directive])) {
-	    $this->policy[$directive][] = $allowed;
-	  } else {
-	    $new = array("'self'", $allowed);
-	    $this->policy[$directive] = $new;
-	  }
-	}
-	
-	public function whiteListObject($type) {
-	  $type = strtolower(trim($type));
-	  if(! in_array($type, $this->objectwhitelist)) {
-	    $this->objectwhitelist[] = $type;
-	  }
-	}
-	
-	public function addKeywords($arg=array()) {
-		if (is_array($arg)) {
-			$this->keywords = array_merge($this->keywords, $arg);
-		} else {
-			$this->keywords[] = $arg;
-		}
-	}
-	
-	public function addDescription($desc) {
-		$this->description = $desc;
-	}
-	
-	public function addStyleSheet($stylename, $serverpath, $fspath="") {
-	  $stylename = trim($stylename);
-	  $serverpath = trim($serverpath);
-	  $fspath = trim($fspath);
-	  $this->domNodes();
-	  if(strlen($fspath) > 0) {
-	    $fullpath = $fspath . $stylename;
-	    if(file_exists($fullpath)) {
-	      $modtime = filemtime($fullpath);
-	      $stylename = preg_replace('/\.css$/', '-' . $modtime . '.css', $stylename);
-	    }
-	  }
-	  $style = $this->dom->createElement('link');
-	  $style->setAttribute('type', 'text/css');
-	  $style->setAttribute('href', $serverpath . $stylename);
-	  $style->setAttribute('rel', 'stylesheet');
-	  $this->xmlHead->appendChild($style);
-	}
-	
-	public function addJavaScript($scriptname, $serverpath, $fspath="") {
-	  $scriptname = trim($scriptname);
-	  $serverpath = trim($serverpath);
-	  $fspath = trim($fspath);
-	  $this->domNodes();
-	  if(strlen($fspath) > 0) {
-	    $fullpath = $fspath . $scriptname;
-	    if(file_exists($fullpath)) {
-	      $modtime = filemtime($fullpath);
-	      $scriptname = preg_replace('/\.js$/', '-' . $modtime . '.js', $scriptname);
-	    }
-	  }
-	  $script = $this->dom->createElement('script');
-	  $script->setAttribute('type', 'application/javascript');
-	  $script->setAttribute('src', $serverpath . $scriptname);
-	  $this->xmlHead->appendChild($script);
-	}
-	
-	public function sendPage() {
-		$this->domNodes();
-		$this->sanitizeBody();
-		$this->adjustHead();
-		$this->xmlHtml->setAttribute('xmlns', $this->xmlns);
-		$this->xmlHtml->setAttributeNS('http://www.w3.org/XML/1998/namespace', 'xml:lang', $this->xmlLang);
-		$this->sendHeader();
-		print $this->dom->saveXML();
-	}
-	
-	public function html5domdoc($dom, $xmlLang="en") {
-		$this->xmlLang = $xmlLang;
-		$this->dom = $dom;
-		$docstring = '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html><html><head /><body /></html>';
-		$this->dom->loadXML($docstring);
-		$this->domNodes();
-		$self = array("'self'");
-		$this->policy['default-src'] = $self;
-		//$none = array("'none'"); //just for testing
-		//$this->policy['object-src'] = $none;
-	}
+    header('Content-Type: application/xhtml+xml; charset=utf-8');
+  }
+
+  public function rtalabel() {
+    $this->rtalabel = true;
+  }
+
+  public function usecsp() {
+    $this->sendcsp = true;
+  }
+
+  public function addPolicy($directive, $allowed) {
+    if(isset($this->policy[$directive])) {
+      $this->policy[$directive][] = $allowed;
+    } else {
+      $new = array("'self'", $allowed);
+      $this->policy[$directive] = $new;
+    }
+  }
+
+  public function whiteListObject($type) {
+    $type = strtolower(trim($type));
+    if(! in_array($type, $this->objectwhitelist)) {
+      $this->objectwhitelist[] = $type;
+    }
+  }
+
+  public function addKeywords($arg=array()) {
+    if (is_array($arg)) {
+      $this->keywords = array_merge($this->keywords, $arg);
+    } else {
+      $this->keywords[] = $arg;
+    }
+  }
+
+  public function addDescription($desc) {
+    $this->description = $desc;
+  }
+
+  public function addStyleSheet($stylename, $serverpath, $fspath="") {
+    $stylename = trim($stylename);
+    $serverpath = trim($serverpath);
+    $fspath = trim($fspath);
+    $this->domNodes();
+    if(strlen($fspath) > 0) {
+      $fullpath = $fspath . $stylename;
+      if(file_exists($fullpath)) {
+        $modtime = filemtime($fullpath);
+        $stylename = preg_replace('/\.css$/', '-' . $modtime . '.css', $stylename);
+      }
+    }
+    $style = $this->dom->createElement('link');
+    $style->setAttribute('type', 'text/css');
+    $style->setAttribute('href', $serverpath . $stylename);
+    $style->setAttribute('rel', 'stylesheet');
+    $this->xmlHead->appendChild($style);
+  }
+
+  public function addJavaScript($scriptname, $serverpath, $fspath="") {
+    $scriptname = trim($scriptname);
+    $serverpath = trim($serverpath);
+    $fspath = trim($fspath);
+    $this->domNodes();
+    if(strlen($fspath) > 0) {
+      $fullpath = $fspath . $scriptname;
+      if(file_exists($fullpath)) {
+        $modtime = filemtime($fullpath);
+        $scriptname = preg_replace('/\.js$/', '-' . $modtime . '.js', $scriptname);
+      }
+    }
+    $script = $this->dom->createElement('script');
+    $script->setAttribute('type', 'application/javascript');
+    $script->setAttribute('src', $serverpath . $scriptname);
+    $this->xmlHead->appendChild($script);
+  }
+
+  public function sendPage() {
+    $this->domNodes();
+    $this->sanitizeBody();
+    $this->adjustHead();
+    $this->xmlHtml->setAttribute('xmlns', $this->xmlns);
+    $this->xmlHtml->setAttributeNS('http://www.w3.org/XML/1998/namespace', 'xml:lang', $this->xmlLang);
+    $this->sendHeader();
+    print $this->dom->saveXML();
+  }
+
+  public function html5domdoc($dom, $xmlLang="en") {
+    $this->xmlLang = $xmlLang;
+    $this->dom = $dom;
+    $docstring = '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html><html><head /><body /></html>';
+    $this->dom->loadXML($docstring);
+    $this->domNodes();
+    $self = array("'self'");
+    $this->policy['default-src'] = $self;
+  }
 } //end of class
 
 /* http://opensource.org/licenses/MIT
